@@ -67,11 +67,15 @@ snapFiles config = do
         fmap catMaybes . mapM (storeFile tmpDir)
   where
     storeFile _   (_,        Left _)     = return Nothing
-    storeFile tmp (partinfo, Right path) = do
-        let newPath = tmp </> "_" ++ takeFileName path ++
-                maybe "" B.unpack (Snap.partFileName partinfo)
-        liftIO $ copyFile path newPath
-        return $ Just (T.decodeUtf8 $ Snap.partFieldName partinfo, newPath)
+    storeFile tmp (partinfo, Right path) =
+      case Snap.partFileName partinfo of
+        Nothing -> return Nothing
+        -- NOTE(dbp 2014-07-29): Workaround for issue snapframework/snap-core#159
+        Just "" -> return Nothing
+        Just name -> do
+          let newPath = tmp </> "_" ++ takeFileName path ++ B.unpack name
+          liftIO $ copyFile path newPath
+          return $ Just (T.decodeUtf8 $ Snap.partFieldName partinfo, newPath)
 
 -- | Runs a form with the HTTP input provided by Snap.
 --
